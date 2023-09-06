@@ -11,7 +11,6 @@ parser = argparse.ArgumentParser(description='Decode De Bruijn sequence')
 parser.add_argument('--image1', type=str, help='Path to the first image', default='imgs/dark.png')
 parser.add_argument('--image2', type=str, help='Path to the second image', default='imgs/pattern.png')
 parser.add_argument('--result', type=str, help='Path to the result image', default='results/diff.png')
-args = parser.parse_args()
 
 def find_similar_pixels(img, x, y, width, threshold):
     target_color = img[y, x]
@@ -81,4 +80,5 @@ def main():
     cv2.imwrite(args.result, modified_diff)
 
 if __name__ == "__main__":
+    args = parser.parse_args()
     main()
