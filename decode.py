@@ -5,6 +5,7 @@ Author: @Kuo Wang
 import os
 import sys
 import cv2
+import random 
 import numpy as np
 import argparse
 import time
@@ -18,7 +19,7 @@ argparser.add_argument(
     "-i",
     "--input",
     help="path to the input image",
-    default="results/modified_diff_mask.png",
+    default="imgs/modified_diff_mask.png",
 )
 # use current time to name the output image
 argparser.add_argument(
@@ -31,7 +32,10 @@ argparser.add_argument(
     "-t", "--threshold", help="control the color pixels", default=20, type=int
 )
 argparser.add_argument(
-    "-p", "--pattern", help="path to the pattern image", default="imgs/de_bruijn_pattern_horizontal_width_2_space_8.png"
+    "-p",
+    "--pattern",
+    help="path to the pattern image",
+    default="imgs/de_bruijn_pattern_horizontal_width_2_space_8.png",
 )
 args = argparser.parse_args()
 
@@ -163,16 +167,17 @@ def check_color(imgs, lines):
     lines.extend(new_lines)
     return
 
-def decode_pattern(pattern_file:str=args.pattern):
-    palette = {
-        "r": [0, 0, 255],
-        "g": [0, 255, 0],
-        "b": [255, 0, 0],
-        "y": [0, 255, 255],
-        "c": [255, 255, 0],
-        "m": [255, 0, 255],
-    }
+
+def decode_pattern(pattern_file: str = args.pattern):
     # reverse the key value in platte
+    palette = {
+    "r": [0, 0, 255],
+    "g": [0, 255, 0],
+    "b": [255, 0, 0],
+    "y": [0, 255, 255],
+    "c": [255, 255, 0],
+    "m": [255, 0, 255],
+}
     palette = {tuple(v): k for k, v in palette.items()}
     pattern = cv2.imread(pattern_file)
     sequence = []
@@ -181,7 +186,66 @@ def decode_pattern(pattern_file:str=args.pattern):
             continue
         sequence.append(palette[tuple(pattern[i, 0])])
     return sequence[::2]
-            
+
+
+def find_sequence(masked_image, lines, sequence):
+    """
+    find the sequence in the image
+    """
+    palette = {
+    "r": [0, 0, 255],
+    "g": [0, 255, 0],
+    "b": [255, 0, 0],
+    "y": [0, 255, 255],
+    "c": [255, 255, 0],
+    "m": [255, 0, 255],
+}
+    palette = {tuple(v): k for k, v in palette.items()}
+    lines_decode = [[] for _ in range(len(sequence))]
+    sequence_dict = defaultdict(int)
+    for i in range(len(sequence) - 2):
+        sequence_dict[tuple(sequence[i : i + 3])] = i
+
+    def find_pixels_vertical(y, x):
+        seqs = []
+        count = 0
+        for yy in range(y - 1, -1, -1):
+            if tuple(masked_image[yy, x]) in palette.keys():
+                seqs.append(palette[tuple(masked_image[yy, x])])
+                count += 1
+                if count == 2:
+                    break
+        ind = count
+        seqs.reverse()
+        seqs.append(palette[tuple(masked_image[y, x])])
+        count = 0
+        for yy in range(y + 1, masked_image.shape[0]):
+            if tuple(masked_image[yy, x]) in palette.keys():
+                seqs.append(palette[tuple(masked_image[yy, x])])
+                count += 1
+                if count == 2:
+                    break
+        decode_temp = []
+        for i in range(len(seqs) - 2):
+            if tuple(seqs[i : i + 3]) in sequence_dict.keys():
+                decode_temp.append(sequence_dict[tuple(seqs[i : i + 3])] + ind - i)
+        return decode_temp
+
+    for line in tqdm(lines):
+        # random choose 20 pixel in the line
+        decode_line = []
+        for y, x in random.sample(line, 20):
+            decode_line.extend(find_pixels_vertical(y, x))
+        # find the most frequent number in the decode_line
+        if len(decode_line) == 0:
+            continue
+        decode_line = np.array(decode_line)
+        decode_line = np.bincount(decode_line)
+        decode_line = np.argmax(decode_line)
+        assert decode_line < len(sequence) and decode_line >= 0, "Decode line error."
+        lines_decode[decode_line].extend(line)
+    return lines_decode
+
 
 if __name__ == "__main__":
     sequence = decode_pattern()
@@ -197,18 +261,28 @@ if __name__ == "__main__":
     lines = search_line(img, skeleton_image.copy())
     # draw the lines and save a gif file to show the process
     check_color(img, lines)
-    gif_images = []
     mask = np.zeros(img.shape[:2], dtype=np.uint8)
     for line in lines:
         for y, x in line:
             mask[y, x] = 255
+    masked_image = cv2.bitwise_and(img, img, mask=mask)
+    masked_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
+    logging.info("find sequence...")
+    lines_decode = find_sequence(masked_image, lines, sequence)
+    # draw the lines_decode one by one and save a gif file to show the process
+    logging.info("Saving gif file...")
+    gif_images = []
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    for i, line in enumerate(lines_decode):
+        if not line:
+            print(f"line {i} is None")
+            continue
+        for y,x in line:
+            mask[y, x] = 255
         masked_image = cv2.bitwise_and(img, img, mask=mask)
         # convert bgr to rgb
         masked_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
-        gif_images.append(masked_image.copy())
-    # save a gif file to show the process and replay automatically
-    logging.info("There are {} frames in the gif file.".format(len(gif_images)))
-    
-    # imageio.mimsave(f'results/gif_skeleton_{time.strftime("%Y%m%d-%H%M%S")}.gif', gif_images, duration=200, loop=0)
+        gif_images.append(masked_image)
+    imageio.mimsave(f'results/gif_skeleton_{time.strftime("%Y%m%d-%H%M")}.gif', gif_images, duration=200, loop=0)
 
     sys.exit(0)
