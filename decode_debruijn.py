@@ -8,8 +8,8 @@ from tqdm import tqdm
 import argparse
 
 parser = argparse.ArgumentParser(description='Decode De Bruijn sequence')
-parser.add_argument('--image1', type=str, help='Path to the first image', default='imgs/dark.png')
-parser.add_argument('--image2', type=str, help='Path to the second image', default='imgs/pattern.png')
+parser.add_argument('--image1', type=str, help='Path to the first image', default='imgs/dark01.png')
+parser.add_argument('--image2', type=str, help='Path to the second image', default='imgs/pat01.png')
 parser.add_argument('--result', type=str, help='Path to the result image', default='results/diff.png')
 
 def find_similar_pixels(img, x, y, width, threshold):

@@ -4,6 +4,9 @@ Author: @Kuo Wang
 """
 import os
 import sys
+print(sys.getrecursionlimit())
+sys.setrecursionlimit(10000)
+print(sys.getrecursionlimit())
 import cv2
 import random 
 import numpy as np
@@ -13,13 +16,13 @@ import logging
 from tqdm import tqdm
 import imageio
 from collections import defaultdict
+# from .decode_debruijn import swap_color
 
 argparser = argparse.ArgumentParser(description="Decoding the diff image")
 argparser.add_argument(
-    "-i",
     "--input",
-    help="path to the input image",
-    default="imgs/modified_diff_mask.png",
+    help="path to the dark image",
+    default="results/diff.png",
 )
 # use current time to name the output image
 argparser.add_argument(
@@ -122,6 +125,10 @@ def search_line(img: np.ndarray, skeleton: np.ndarray):
             return
         for xx in range(1, 6):
             for yy in (0, 1, -1, 2, -2):
+                if y + yy < 0 or y + yy >= skeleton.shape[0]:
+                    continue
+                if x + xx >= skeleton.shape[1]:
+                    return
                 if skeleton[y + yy, x + xx] == 255:
                     skeleton[y - 2 : y + 3, x + xx] = 0
                     line.append((y + yy, x + xx))
@@ -267,6 +274,7 @@ if __name__ == "__main__":
             mask[y, x] = 255
     masked_image = cv2.bitwise_and(img, img, mask=mask)
     masked_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
+    imageio.imwrite(f'results/skeleton_{time.strftime("%Y%m%d-%H%M%S")}.png', masked_image)
     logging.info("find sequence...")
     lines_decode = find_sequence(masked_image, lines, sequence)
     # draw the lines_decode one by one and save a gif file to show the process
