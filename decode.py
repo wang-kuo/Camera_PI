@@ -14,6 +14,7 @@ import argparse
 import time
 import logging
 from tqdm import tqdm
+import pickle
 import imageio
 from collections import defaultdict
 # from .decode_debruijn import swap_color
@@ -292,5 +293,8 @@ if __name__ == "__main__":
         masked_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
         gif_images.append(masked_image)
     imageio.mimsave(f'results/gif_skeleton_{time.strftime("%Y%m%d-%H%M")}.gif', gif_images, duration=200, loop=0)
+    # sava lines_decode to a pickle file
+    with open(f'results/lines_decode_{time.strftime("%Y%m%d-%H%M%S")}.pkl', 'wb') as f:
+        pickle.dump(lines_decode, f)
 
     sys.exit(0)

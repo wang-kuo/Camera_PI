@@ -6,10 +6,12 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 import argparse
+import yaml
 
 parser = argparse.ArgumentParser(description='Decode De Bruijn sequence')
 parser.add_argument('--image1', type=str, help='Path to the first image', default='imgs/dark01.png')
 parser.add_argument('--image2', type=str, help='Path to the second image', default='imgs/pat01.png')
+parser.add_argument("--mask", type=str, help= "Path to Mask", default="imgs/mask01.png")
 parser.add_argument('--result', type=str, help='Path to the result image', default='results/diff.png')
 
 def find_similar_pixels(img, x, y, width, threshold):
@@ -71,11 +73,22 @@ def swap_color(img1, img2):
                 modified_diff[i, j] = palette[list(palette.keys())[pixel_class[i, j]]]
     return modified_diff
 
+def undistort(img, calibration_file):
+    with open(calibration_file) as f:
+        loadeddict = yaml.load(f)
+        mtx = loadeddict.get('camera_matrix')
+        dist = loadeddict.get('dist_coeff')
+    return cv2.undistort(img, mtx, dist, None, mtx)
+
 def main():
     
     # Read the images
     img1 = cv2.imread(args.image1)
     img2 = cv2.imread(args.image2)
+    immask = cv2.imread(args.mask)
+    # img1 = undistort(img1, "calibration.yaml")
+    img1 = cv2.bitwise_and(img1, immask)
+    img2 = cv2.bitwise_and(img2, immask)
     modified_diff = swap_color(img1, img2)
     cv2.imwrite(args.result, modified_diff)
 
