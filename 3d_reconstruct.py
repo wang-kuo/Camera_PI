@@ -4,6 +4,8 @@ import numpy as np
 import pickle
 from dataclasses import dataclass
 import open3d as o3d
+
+from configs import *
 class Camera:
     
     def __init__(self, yaml_file):
@@ -63,7 +65,6 @@ class Camera:
         
         return n
     
-    # Compute the intersection of a ray and a plane
     # Compute the intersection of a ray and a plane
     def intersect_ray_plane(self, O_cam, D_cam, n, P):
         denom = np.dot(n, D_cam)
